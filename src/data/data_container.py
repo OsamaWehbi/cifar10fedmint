@@ -1,11 +1,11 @@
 import copy
+import random
 import typing
-
 import numpy as np
 import torch
 from src.apis.extensions import Functional
 
-
+Best = ["SAPAsiaPhone","SAPAfricaPhone","SAPAmericaWatch","SAPEuropeLock","IBMAsiaLock","IBMAfricaPhone","IBMAmericaSecurity","IBMEuropePhone","CiscoAsiaPhone","CiscoAfricaWatch","CiscoAmericaSecurity","CiscoEuropeWatch","PTCAsiaWatch","PTCAfricaSecurity","PTCAmericaSecurity","PTCEuropeLock"]
 class DataContainer(Functional):
 
     def __init__(self, x, y):
@@ -62,14 +62,126 @@ class DataContainer(Functional):
             return DataContainer(self.x.numpy().tolist(), self.y.numpy().tolist())
         return self
 
-    def split(self, train_freq) -> ('DataContainer', 'DataContainer'):
+    def split(self, train_freq, IoT=None) -> ('DataContainer', 'DataContainer'):
         total_size = len(self)
         train_size = int(total_size * train_freq)
         x_train = self.x[0:train_size]
         y_train = self.y[0:train_size]
         x_test = self.x[train_size:total_size]
         y_test = self.y[train_size:total_size]
+        if IoT:
+            y_test = self.pois(IoT=IoT, dtpois=y_test)
         return DataContainer(x_train, y_train), DataContainer(x_test, y_test)
+
+    def poismain(self, datatype='kdd', IoT=None) -> 'DataContainer':
+        if IoT:
+            Region = IoT.Region
+            dtype = IoT.Devt
+            # print(Region, "\t", dtype)
+            if Region == "Asia":
+                if dtype == "Phone":
+                    pois_rate = 0.3
+                elif dtype == "Security":
+                    pois_rate = 0.4
+                elif dtype == "lock":
+                    pois_rate = 0.5
+                else:
+                    pois_rate = 0
+            elif Region == "Africa":
+                if dtype == "watch":
+                    pois_rate = 0.4
+                elif dtype == "Security":
+                    pois_rate = 0.5
+                elif dtype == "lock":
+                    pois_rate = 0.3
+                else:
+                    pois_rate = 0
+            elif Region == "America":
+                if dtype == "Phone":
+                    pois_rate = 0.5
+                elif dtype == "Security":
+                    pois_rate = 0.4
+                elif dtype == "watch":
+                    pois_rate = 0.3
+                else:
+                    pois_rate = 0
+            else:
+                if dtype == "Phone":
+                    pois_rate = 0.4
+                elif dtype == "watch":
+                    pois_rate = 0.3
+                elif dtype == "lock":
+                    pois_rate = 0.5
+                else:
+                    pois_rate = 0
+        total_size = len(self.y)
+        # print(total_size)
+        pois_size = int(total_size * pois_rate)
+        # print(pois_size)
+        for i in range(0, pois_size):
+            if datatype == 'mnist':
+                r = random.randint(0, 9)
+                while r == self.y[i]:
+                    r = random.randint(0, 9)
+                # print(self.y[i], "==>", r)
+                self.y[i] = r
+            else:
+                r = random.randint(0, 4)
+                while r == self.y[i]:
+                    r = random.randint(0, 4)
+                # print(self.y[i], "==>", r)
+                self.y[i] = r
+                # if self.y[i] == 0:
+                #     self.y[i] = 1
+                # else:
+                #     self.y[i] = 0
+        # x_train = self.x[0:pois_size]
+        # y_train = self.y[0:pois_size]
+        # x_test = self.x[pois_size:total_size]
+        # y_test = self.y[pois_size:total_size]
+        return DataContainer(self.x, self.y)
+
+    def pois(self, pois_rate=None, datatype=None, IoT=None, dtpois=None) -> 'DataContainer':
+
+        if IoT:
+            Region = IoT.Region
+            dtype = IoT.Devt
+            producer = IoT.Producer
+            # print((producer+Region+dtype))
+            if (producer+Region+dtype) in Best:
+                pois_rate = 0
+                # print("pass the good!!!")
+            else:
+                pois_rate = 0.5
+            pois_size = int(pois_rate*len(dtpois))
+            for i in range(pois_size):
+                r = random.randint(0, 9)
+                while r == dtpois[i]:
+                    r = random.randint(0, 9)
+                # print(dtpois[i], "==>", r)
+                dtpois[i] = r
+            return dtpois
+        else:
+            total_size = len(self.y)
+            # print(total_size)
+            pois_size = int(total_size * pois_rate)
+            # print(pois_size)
+            for i in range(0, pois_size):
+                if datatype == 'Mnist':
+                    r = random.randint(0, 9)
+                    while r == self.y[i]:
+                        r = random.randint(0, 9)
+                    self.y[i] = r
+                else:
+                    r = random.randint(0, 4)
+                    while r == self.y[i]:
+                        r = random.randint(0, 4)
+                    self.y[i] = r
+            # x_train = self.x[0:pois_size]
+            # y_train = self.y[0:pois_size]
+            # x_test = self.x[pois_size:total_size]
+            # y_test = self.y[pois_size:total_size]
+            return DataContainer(self.x, self.y)
 
     def shuffle(self, seed=None):
         dc = copy.deepcopy(self) if self.is_numpy() else self.as_numpy()

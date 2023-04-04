@@ -27,5 +27,5 @@ class AccLoss(ModelInfer):
                 test_acc += correct.item()
                 test_loss += loss.item() * target.size(0)
                 test_total += target.size(0)
-
+        # print(test_acc,test_total, test_loss ,test_total)
         return test_acc / test_total, test_loss / test_total

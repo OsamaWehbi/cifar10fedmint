@@ -7,6 +7,8 @@ from functools import reduce
 from typing import Dict
 import src.apis.extensions as extensions
 import src
+import statistics
+import xlsxwriter
 from src import tools
 from src.apis.broadcaster import Broadcaster
 from src.data.data_container import DataContainer
@@ -20,7 +22,8 @@ class FederatedLearning(Broadcaster):
     def __init__(self, trainer_manager: TrainerManager, trainer_config: TrainerParams, aggregator: Aggregator,
                  client_selector: ClientSelector, metrics: ModelInfer, trainers_data_dict: Dict[int, DataContainer],
                  initial_model: callable, num_rounds=10, desired_accuracy=0.9, train_ratio=0.8,
-                 accepted_accuracy_margin=False, test_data: DataContainer = None, zero_client_exception=True, **kwargs):
+                 accepted_accuracy_margin=False, test_data: DataContainer = None, zero_client_exception=True,
+                 Selector=None, FedServer=None, DataName=None, worksheet=None, **kwargs):
         super().__init__()
         self.trainer_config = trainer_config
         self.trainer_manager = trainer_manager
@@ -28,32 +31,65 @@ class FederatedLearning(Broadcaster):
         self.client_selector = client_selector
         self.metrics = metrics
         self.aam = accepted_accuracy_margin
-        self.trainers_data_dict = trainers_data_dict
         self.desired_accuracy = desired_accuracy
         self.initial_model = initial_model
         self.train_ratio = train_ratio
+        self.DataName = DataName
         self.num_rounds = num_rounds
+        self.Selector = Selector
+        # self.wr = xlsxwriter.Workbook("test3.xlsx")
+        # self.ws = self.wr.add_worksheet('tester')
+        if FedServer:
+            self.worsheet =worksheet
         self.args = kwargs
         self.events = {}
         self._check_params()
         self.context = FederatedLearning.Context()
         self.test_data = test_data
-        self.trainers_train = self.trainers_data_dict
+        if FedServer:
+            self.temp_trainers_data_dict = trainers_data_dict
+            self.trainers_data_dict = None
+            self.trainers_train = None
+            # self.trainers_data_dict = self.datacleaner(FedServer, trainers_data_dict)
+        else:
+            self.trainers_data_dict = trainers_data_dict
+            # 1
+            self.trainers_train = self.trainers_data_dict
+            # 2
+            if self.test_data is None:
+                self.test_data = {}
+                self.trainers_train = {}
+                for trainer_id, data in trainers_data_dict.items():
+                    for el in self.Selector:
+                        if el.Name == trainer_id:
+                            agent = el
+                    data = data.shuffle().as_tensor()
+                    train, test = data.split(self.train_ratio, IoT=agent)
+                    # train, test = data.split(self.train_ratio)
+                    self.trainers_train[trainer_id] = train
+                    self.test_data[trainer_id] = test
+        # 1
         self.is_finished = False
         self.zero_client_exception = zero_client_exception
         self.logger = logging.getLogger('FederatedLearning')
-        if self.test_data is None:
-            self.test_data = {}
-            self.trainers_train = {}
-            for trainer_id, data in trainers_data_dict.items():
-                data = data.shuffle().as_tensor()
-                train, test = data.split(train_ratio)
-                self.trainers_train[trainer_id] = train
-                self.test_data[trainer_id] = test
+        self.FedServer = FedServer
+        # 2
         self.trainer_manager.trainer_started = lambda trainer_id: \
             self.broadcast(Events.ET_TRAINER_STARTED, trainer_id=trainer_id)
         self.trainer_manager.trainer_finished = lambda trainer_id, weights, sample_size: \
             self.broadcast(Events.ET_TRAINER_FINISHED, trainer_id=trainer_id, weights=weights, sample_size=sample_size)
+
+    def datacleaner(self, FedServer, trainer_dic):
+        own_data={}
+        if FedServer:
+            for i, val in trainer_dic.items():
+                if i in FedServer.Mdic:
+                    own_data[i] = val
+
+        # for i in FedServer.preference:
+        #     print(i)
+        # print(own_data.keys())
+        return own_data
 
     def start(self):
         self.init()
@@ -69,10 +105,36 @@ class FederatedLearning(Broadcaster):
         self.broadcast(Events.ET_INIT, global_model=self.context.model)
 
     def one_round(self):
+        # self.init()
         if self.is_finished:
             return self.is_finished
         self.broadcast(Events.ET_ROUND_START, round=self.context.round_id)
-        trainers_ids = self.client_selector.select(list(self.trainers_data_dict.keys()), self.context)
+        # clean the data get new list of clients
+        if self.FedServer:
+            self.trainers_data_dict = self.datacleaner(self.FedServer, self.temp_trainers_data_dict)
+            # 1
+            self.trainers_train = self.trainers_data_dict
+            # 2
+            if self.test_data is None:
+                self.test_data = {}
+                self.trainers_train = {}
+                for trainer_id, data in self.trainers_data_dict.items():
+                    for el in self.Selector:
+                        if el.Name == trainer_id:
+                            agent = el
+                    data = data.shuffle().as_tensor()
+                    train, test = data.split(self.train_ratio, IoT=agent)
+                    # train, test = data.split(self.train_ratio)
+                    self.trainers_train[trainer_id] = train
+                    self.test_data[trainer_id] = test
+            # edit it to get client_data keys if you want to use all the clients in the round
+            fedlist = []
+            for i in self.FedServer.preference:
+                fedlist.append(i.getName())
+            trainers_ids = self.client_selector.select(fedlist, self.context)
+        else:
+            trainers_ids = self.client_selector.select(list(self.trainers_data_dict.keys()), self.context)
+
         if len(trainers_ids) > 0:
             self.broadcast(Events.ET_TRAINER_SELECTED, trainers_ids=trainers_ids)
             trainers_train_data = tools.dict_select(trainers_ids, self.trainers_train)
@@ -83,9 +145,37 @@ class FederatedLearning(Broadcaster):
             temporary_model = self.context.model_copy(global_weights)
             self.broadcast(Events.ET_AGGREGATION_END, global_weights=global_weights, global_model=self.context.model)
             accuracy, loss, local_acc, local_loss = self.infer(temporary_model, self.test_data)
+            # added part
+            # if self.Selector:
+            #     temp = self.Selector
+            #     for iotd, ioacc in local_acc.items():
+            #         for i in temp:
+            #             if i.getName().lower() == iotd.lower():
+            #                 if self.FedServer:
+            #                     i.setAcc(round(ioacc, 2), self.FedServer.DataName)
+            #                 else:
+            #                     i.setAcc(round(ioacc, 2), self.DataName)
             model_status = self.context.update_model(temporary_model, accuracy, self.aam)
             self.broadcast(Events.ET_MODEL_STATUS, model_status=model_status, accuracy=accuracy)
             accuracy = accuracy if model_status else self.context.highest_accuracy()
+            if self.FedServer:
+                self.worsheet.write('A' + str(self.context.round_id+4), self.context.round_id)
+                self.worsheet.write('B' + str(self.context.round_id+4), accuracy)
+            if self.Selector:
+                temp = self.Selector
+                for iotd, ioacc in local_acc.items():
+                    for i in temp:
+                        if i.getName().lower() == iotd.lower():
+                            if self.FedServer:
+                                i.setAcc(ioacc, self.FedServer.DataName)
+                                i.Dicstd[self.FedServer.DataName] = statistics.stdev([ioacc, accuracy])
+                                # i.setstd(statistics.stdev([ioacc, accuracy]), self.FedServer.DataName)
+                            else:
+                                # self.ws.write('A' + str(i.ID + 1), str(iotd))
+                                # self.ws.write('B' + str(i.ID + 1), ioacc)
+                                # i.setAcc(ioacc, self.DataName)
+                                i.Dicstd[self.DataName] = statistics.stdev([ioacc, accuracy])
+
             self.context.store(acc=accuracy, loss=loss, local_acc=local_acc, local_loss=local_loss, status=model_status)
             self.broadcast(Events.ET_ROUND_FINISHED, round=self.context.round_id, accuracy=accuracy, loss=loss,
                            local_acc=local_acc, local_loss=local_loss)
@@ -102,6 +192,9 @@ class FederatedLearning(Broadcaster):
         self.context.new_round()
         is_done = self.context.stop(self, accuracy)
         if is_done:
+            # self.wr.close()
+            if self.FedServer:
+                self.FedServer.finish =True
             self.is_finished = True
             self.broadcast(Events.ET_FED_END, aggregated_model=self.context.model)
         return is_done

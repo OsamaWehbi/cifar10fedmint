@@ -23,7 +23,11 @@ def preload(dataset, distributor: Distributor = None, tag=None, transformer=None
     Returns: clients data of type typing.Dict[int, DataContainer]
 
     """
-    tag = tag or dataset + '_' + distributor.id() if distributor else ''
+    # if dataset == 'mnist10k':
+    #     print(tag)
+    #     print("fuck")
+    #     quit()
+    tag = tag or dataset + '_' + distributor.id() if distributor else tag
     file_path = manifest.DATA_PATH + tag + ".pkl"
     logger.info(f'searching for {file_path}...')
     data = None
@@ -35,8 +39,8 @@ def preload(dataset, distributor: Distributor = None, tag=None, transformer=None
         logger.info('distributed data file does not exists, distributing...')
         data = PickleDataProvider(manifest.datasets_urls[dataset]).collect()
         if distributor:
-            data = distributor.distribute(data)
-        pickle.dump(data, open(file_path, 'wb'))
+            data = distributor.distribute(data, dname=dataset)
+        # pickle.dump(data, open(file_path, 'wb'))
     data = transformer(data) if callable(transformer) else data
     return data
 
@@ -74,7 +78,7 @@ def femnist_2shards_100c_600min_600max() -> Dict[int, DataContainer]:
 
 
 def femnist_100c_2000min_2000max() -> Dict[int, DataContainer]:
-    return preload('femnist', SizeDistributor(100, 2000, 2000))
+    return preload('femnist', SizeDistributor(100, 200, 200))
 
 
 def femnist_2shards_100c_2000min_2000max() -> Dict[int, DataContainer]:

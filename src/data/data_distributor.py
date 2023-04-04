@@ -91,38 +91,81 @@ class PercentageDistributor(Distributor):
 
 class LabelDistributor(Distributor):
 
-    def __init__(self, num_clients, label_per_client, min_size, max_size,
-                 is_random_label_size=False):
-        super().__init__()
-        self.num_clients = num_clients
-        self.label_per_client = label_per_client
-        self.min_size = min_size
-        self.max_size = max_size
-        self.is_random_label_size = is_random_label_size
+    def __init__(self, num_clients, label_per_client, min_size=None, max_size=None, is_random_label_size=False, is_Dummy=False):
+        if isinstance(num_clients, list):
+            super().__init__()
+            self.client_list = num_clients
+            self.num_clients = len(num_clients)
+            self.label_per_client = label_per_client
+            self.is_random_label_size = is_random_label_size
+            self.is_Dummy = is_Dummy
+        else:
+            super().__init__()
+            self.num_clients = num_clients
+            self.label_per_client = label_per_client
+            self.min_size = min_size
+            self.max_size = max_size
+            self.is_random_label_size = is_random_label_size
+            # self.is_Dummy = is_Dummy
 
-    def distribute(self, data: DataContainer) -> Dict[int, DataContainer]:
-        data = data.as_numpy()
-        self.log(f'distributing {data}', level=0)
-        clients_data = defaultdict(list)
-        grouper = self.Grouper(data.x, data.y)
-        for client_id in range(self.num_clients):
-            client_data_size = random.randint(self.min_size, self.max_size)
-            label_per_client = random.randint(1, self.label_per_client) if self.is_random_label_size \
-                else self.label_per_client
-            selected_labels = grouper.groups(label_per_client)
-            self.log(f'generating data for {client_id}-{selected_labels}')
-            client_x = []
-            client_y = []
-            for shard in selected_labels:
-                selected_data_size = int(client_data_size / len(selected_labels)) or 1
-                rx, ry = grouper.get(shard, selected_data_size)
-                if len(rx) == 0:
-                    self.log(f'shard {round(shard)} have no more available data to distribute, skipping...', level=0)
-                else:
-                    client_x = rx if len(client_x) == 0 else np.concatenate((client_x, rx))
-                    client_y = ry if len(client_y) == 0 else np.concatenate((client_y, ry))
-            clients_data[client_id] = DataContainer(client_x, client_y).as_tensor()
-        return Dict(clients_data)
+    def distribute(self, data: DataContainer, dname: str) -> Dict[int, DataContainer]:
+        if hasattr(self, "client_list"):
+            data = data.as_numpy()
+            self.log(f'distributing {data}', level=0)
+            clients_data = defaultdict(list)
+            grouper = self.Grouper(data.x, data.y)
+            for val in self.client_list:
+                # for i in self.client_list:
+                #     print(i.getName())
+                # quit()
+                # comment use the size generated please
+                label_per_client = random.randint(1, self.label_per_client) if self.is_random_label_size \
+                    else self.label_per_client
+                selected_labels = grouper.groups(label_per_client)
+                self.log(f'generating data for {val.getName()}-{selected_labels}')
+                client_x = []
+                client_y = []
+                # quit()
+                # print(f"{self.is_Dummy}")
+                for shard in selected_labels:
+                    # val.getData()[dname] represents client data size
+                    selected_data_size = int(val.getData()[dname] / len(selected_labels)) or 1
+                    rx, ry = grouper.get(shard, selected_data_size)
+
+                    if len(rx) == 0:
+                        self.log(f'shard {round(shard)} have no more available data to distribute, skipping...',
+                                 level=0)
+                    else:
+                        client_x = rx if len(client_x) == 0 else np.concatenate((client_x, rx))
+                        client_y = ry if len(client_y) == 0 else np.concatenate((client_y, ry))
+                # print(client_y)
+                # quit()
+                # grouper.clean()
+                clients_data[val.getName()] = DataContainer(client_x, client_y).as_tensor()
+            return Dict(clients_data)
+        else:
+            data = data.as_numpy()
+            self.log(f'distributing {data}', level=0)
+            clients_data = defaultdict(list)
+            grouper = self.Grouper(data.x, data.y)
+            for client_id in range(self.num_clients):
+                client_data_size = random.randint(self.min_size, self.max_size)
+                label_per_client = random.randint(1, self.label_per_client) if self.is_random_label_size \
+                    else self.label_per_client
+                selected_labels = grouper.groups(label_per_client)
+                self.log(f'generating data for {client_id}-{selected_labels}')
+                client_x = []
+                client_y = []
+                for shard in selected_labels:
+                    selected_data_size = int(client_data_size / len(selected_labels)) or 1
+                    rx, ry = grouper.get(shard, selected_data_size)
+                    if len(rx) == 0:
+                        self.log(f'shard {round(shard)} have no more available data to distribute, skipping...', level=0)
+                    else:
+                        client_x = rx if len(client_x) == 0 else np.concatenate((client_x, rx))
+                        client_y = ry if len(client_y) == 0 else np.concatenate((client_y, ry))
+                clients_data[client_id] = DataContainer(client_x, client_y).as_tensor()
+            return Dict(clients_data)
 
     class Grouper:
         def __init__(self, x, y):
@@ -149,43 +192,81 @@ class LabelDistributor(Distributor):
             self.label_cursor = (self.label_cursor + 1) % len(self.all_labels)
             return self.all_labels[temp]
 
+        def clean(self):
+            for label, records in self.grouped.items():
+                if label in self.selected and self.selected[label] >= len(records):
+                    print('cleaning the good way')
+                    del self.all_labels[self.all_labels.index(label)]
+
         def get(self, label, size=0):
             if size == 0:
                 size = len(self.grouped[label])
+            #  added
+            if self.selected[label] + size > len(self.grouped[label]):
+                self.selected[label] = 0
             x = self.grouped[label][self.selected[label]:self.selected[label] + size]
             y = [label] * len(x)
             self.selected[label] += size
             if len(x) == 0:
-                del self.all_labels[self.all_labels.index(label)]
+                print("No Data ......!!!!!!!!!!!!!!!")
+                # self.selected[label] = 0
+                # del self.all_labels[self.all_labels.index(label)]
             return x, y
 
     def id(self):
         r = '_r' if self.is_random_label_size else ''
+        if hasattr(self, "client_list"):
+            return f'label_{self.num_clients}c_{self.label_per_client}' + r
         return f'label_{self.num_clients}c_{self.label_per_client}l_{self.min_size}mn_{self.max_size}mx' + r
 
 
 class SizeDistributor(Distributor):
-    def __init__(self, num_clients, min_size, max_size):
-        super().__init__()
-        self.num_clients = num_clients
-        self.min_size = min_size
-        self.max_size = max_size
+    def __init__(self, num_clients, min_size=None, max_size=None):
+        # add condition
+        if isinstance(num_clients, list):
+            super().__init__()
+            self.client_list = num_clients
+            self.num_clients = len(num_clients)
+        else:
+            super().__init__()
+            self.num_clients = num_clients
+            self.min_size = min_size
+            self.max_size = max_size
 
-    def distribute(self, data: DataContainer) -> Dict[int, DataContainer]:
-        data = data.as_list()
-        clients_data = Dict()
-        xs = data.x
-        ys = data.y
-        data_pos = 0
-        for i in range(self.num_clients):
-            client_data_size = random.randint(self.min_size, self.max_size)
-            client_x = xs[data_pos:data_pos + client_data_size]
-            client_y = ys[data_pos:data_pos + client_data_size]
-            data_pos += len(client_x)
-            clients_data[i] = DataContainer(client_x, client_y).as_tensor()
-        return Dict(clients_data)
+    def distribute(self, data: DataContainer, dname: str) -> Dict[int, DataContainer]:
+        if hasattr(self, "client_list"):
+            data = data.as_list()
+            clients_data = Dict()
+            xs = data.x
+            ys = data.y
+            data_pos = 0
+            for val in self.client_list:
+                # added
+                if (data_pos + val.getData()[dname]) > len(xs):
+                    data_pos = 0
+                # client_data_size = random.randint(self.min_size, self.max_size)
+                client_x = xs[data_pos:data_pos + val.getData()[dname]]
+                client_y = ys[data_pos:data_pos + val.getData()[dname]]
+                data_pos += len(client_x)
+                clients_data[val.getName()] = DataContainer(client_x, client_y).as_tensor()
+            return Dict(clients_data)
+        else:
+            data = data.as_list()
+            clients_data = Dict()
+            xs = data.x
+            ys = data.y
+            data_pos = 0
+            for i in range(self.num_clients):
+                client_data_size = random.randint(self.min_size, self.max_size)
+                client_x = xs[data_pos:data_pos + client_data_size]
+                client_y = ys[data_pos:data_pos + client_data_size]
+                data_pos += len(client_x)
+                clients_data[i] = DataContainer(client_x, client_y).as_tensor()
+            return Dict(clients_data)
 
     def id(self):
+        if hasattr(self, "client_list"):
+            return f'size_{self.num_clients}'
         return f'size_{self.num_clients}c_{self.min_size}mn_{self.max_size}mx'
 
 
