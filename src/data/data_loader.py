@@ -39,8 +39,8 @@ def preload(dataset, distributor: Distributor = None, tag=None, transformer=None
         logger.info('distributed data file does not exists, distributing...')
         data = PickleDataProvider(manifest.datasets_urls[dataset]).collect()
         if distributor:
-            data = distributor.distribute(data, dname=dataset)
-        # pickle.dump(data, open(file_path, 'wb'))
+            data = distributor.distribute(data)
+        pickle.dump(data, open(file_path, 'wb'))
     data = transformer(data) if callable(transformer) else data
     return data
 

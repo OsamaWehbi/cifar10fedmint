@@ -164,8 +164,8 @@ class IoT:
     #            f"pricedic = {self.pricedic} \t Array Preference = {self.preference} \t part_time = {self.part_time}"
     def __str__(self):
         return f"IoT ID= {self.ID:<5} Name= {self.Name:<10} CPU= {round(self.cpu,4):<10} RAM= {round(self.ram,4):<10} Bandwidth= {self.bandwidth:<5}"\
-               f" Acc= {round(self.Dicaccuracy['mnist'],3):<5} Std = {round(self.Dicstd['mnist'],3):<8}"\
-               f" Iottime= {round(self.iottime,4) :<10} Data Available = {self.data['mnist']:<5}"\
+               f" Acc= {round(self.Dicaccuracy['cifar10'],3):<5} Std = {round(self.Dicstd['cifar10'],3):<8}"\
+               f" Iottime= {round(self.iottime,4) :<10} Data Available = {self.data['cifar10']:<5}"\
                f" Part_time = {self.part_time} \t CRev= {round(self.crev,3):<5} Rev: {self.rev}"
     # def printdev(self):
     #     print(f"IoT ID=  {self.ID} ,Name= {self.Name} , bandwidth= {self.bandwidth} , cpu= {self.cpu}" \

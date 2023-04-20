@@ -34,7 +34,7 @@ Best = ["SAPAsiaPhone","SAPAfricaPhone","SAPAmericaWatch","SAPEuropeLock","IBMAs
 DevType = ["Watch", "Phone", "Lock", "Security"]
 # used to manage data size in general (used,wasted)
 # , "kdd": 125000 "mnist": 55000,
-Mdata = {"mnist": 60000}
+Mdata = {"cifar10": 60000}
 #
 # Mdata = {"kdd": 125000}
 # wr = xlsxwriter.Workbook("test2.xlsx")
@@ -45,7 +45,7 @@ FedArr = []
 # save the counter
 IoTN =0
 # dname = "kdd"
-dname = "mnist"
+dname = "cifar10"
 
 def generate(NOF=None, NIO=None):
     # print(Mdata)
@@ -57,8 +57,8 @@ def generate(NOF=None, NIO=None):
     BIoTNum = 300
     # Fed_min_rounds = 20
     # Fed_max_rounds = 30
-    Fed_min_rounds = 15
-    Fed_max_rounds = 15
+    Fed_min_rounds = 500
+    Fed_max_rounds = 500
     # 30 50 / 5 10 / 20 30
     fed_min_iot = 10
     fed_max_iot = 10
@@ -199,7 +199,8 @@ def generateIoT(NIO=None, IoTArr=None, pAcc=True):
             bandwith = random.randint(bad_iot_min_bandwidth, bad_iot_max_bandwidth)
 
         xdata = np.array(data_dct[dname]).reshape(-1, 1)
-        iotTaskTimeNeededForTheJob = float(Tmodel.predict(xdata))
+        # iotTaskTimeNeededForTheJob = float(Tmodel.predict(xdata))
+        iotTaskTimeNeededForTheJob = float(100)
 
         iot_device_Match = IoT.IoT(i + 1, "IOT" + str(i + 1), cpu, ram, bandwith,
                                    iotTaskTimeNeededForTheJob, data_dct, diclatency, ipricedic, region, devt, producer)

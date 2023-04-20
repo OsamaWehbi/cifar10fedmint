@@ -21,9 +21,9 @@ class FederatedLearning(Broadcaster):
 
     def __init__(self, trainer_manager: TrainerManager, trainer_config: TrainerParams, aggregator: Aggregator,
                  client_selector: ClientSelector, metrics: ModelInfer, trainers_data_dict: Dict[int, DataContainer],
-                 initial_model: callable, num_rounds=10, desired_accuracy=0.9, train_ratio=0.8,
-                 accepted_accuracy_margin=False, test_data: DataContainer = None, zero_client_exception=True,
-                 Selector=None, FedServer=None, DataName=None, worksheet=None, **kwargs):
+                 initial_model: callable, num_rounds: object = 10, desired_accuracy: object = 0.9, train_ratio: object = 0.8,
+                 accepted_accuracy_margin: object = False, test_data=None, zero_client_exception: object = True,
+                 Selector: object = None, FedServer: object = None, DataName: object = None, worksheet: object = None, **kwargs: object) -> object:
         super().__init__()
         self.trainer_config = trainer_config
         self.trainer_manager = trainer_manager
@@ -48,6 +48,7 @@ class FederatedLearning(Broadcaster):
         self.test_data = test_data
         if FedServer:
             self.temp_trainers_data_dict = trainers_data_dict
+            self.temp_trainers_data_test_dict = test_data
             self.trainers_data_dict = None
             self.trainers_train = None
             # self.trainers_data_dict = self.datacleaner(FedServer, trainers_data_dict)
@@ -112,6 +113,7 @@ class FederatedLearning(Broadcaster):
         # clean the data get new list of clients
         if self.FedServer:
             self.trainers_data_dict = self.datacleaner(self.FedServer, self.temp_trainers_data_dict)
+            self.test_data = self.datacleaner(self.FedServer, self.temp_trainers_data_test_dict)
             # 1
             self.trainers_train = self.trainers_data_dict
             # 2

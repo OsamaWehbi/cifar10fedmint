@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.autograd.grad_mode import F
+# from torch.autograd.grad_mode import F
 
 
 class CNN_OriginalFedAvg(torch.nn.Module):

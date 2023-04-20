@@ -19,7 +19,7 @@ import MLM
 # print(arr)
 # print(Accmodel.predict(arr))
 # "C:\Users\user\Desktop\newdata\Original\KDDPlus.csv"
-df = pd.read_csv("C:/Users/user/Desktop/LastModel/NTDATA.csv")
+df = pd.read_csv("C:/Users/Osama.Wehbi/Desktop/NTDATA.csv")
 # print(df.head())
 # print(list(df.keys()))
 #
