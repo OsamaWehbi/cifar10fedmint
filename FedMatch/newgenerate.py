@@ -38,7 +38,7 @@ def generate(NOF=None, NIO=None):
     partdic = []
     GIoTNum = 70
     BIoTNum = 29
-    Fed_max_rounds = 10
+    Fed_max_rounds = 500
     fed_max_iot = 10
     bad_iot_min_cpu = 300  # 50
     bad_iot_max_cpu = 320  # 100

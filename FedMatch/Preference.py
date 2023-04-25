@@ -75,8 +75,8 @@ def FedPreference(IotArr, FedArr):
         # if i.round > 0 and (i.finish == False):
         if i.finish == False:
             for j in IotArr:
-                if i.getDName().lower() in j.getData().keys() and j.part_time[i.Name] < 3:
-                # if i.getDName().lower() in j.getData().keys():
+                # if i.getDName().lower() in j.getData().keys() and j.part_time[i.Name] < 3:
+                if i.getDName().lower() in j.getData().keys():
                     # i.preference.append(copy.deepcopy(j))
                     i.preference.append(j)
                 else:
@@ -89,8 +89,8 @@ def RFedPreference(IotArr, FedArr):
         # if i.round > 0 and (i.finish == False):
         if i.finish == False:
             for j in IotArr:
-                # if i.getDName().lower() in j.getData().keys() and j.part_time[i.Name] < 4:
-                if i.getDName().lower() in j.getData().keys():
+                if i.getDName().lower() in j.getData().keys() and j.part_time[i.Name] < 4:
+                # if i.getDName().lower() in j.getData().keys():
                     # i.preference.append(copy.deepcopy(j))
                     i.preference.append(j)
                 else:
@@ -104,8 +104,8 @@ def IoTPreference(IotArr, FedArr):
         for j in FedArr:
             # if j.round > 0 and not j.finish:
             if j.finish == False:
-                # if j.getDName().lower() in i.getData().keys() :
-                if j.getDName().lower() in i.getData().keys() and i.part_time[j.Name] < 3:
+                if j.getDName().lower() in i.getData().keys() :
+                # if j.getDName().lower() in i.getData().keys() and i.part_time[j.Name] < 3:
                     # i.arraypreference.append(copy.deepcopy(j))
                     i.preference.append(j)
     logger.info("End Add Fed's To Preference of IoT....")

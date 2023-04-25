@@ -51,10 +51,10 @@ def splter(client_data, pois=True):
     for trainer_id, data in client_data.items():
         data = data.shuffle().as_tensor()
         train, test = data.split(0.7)
-        train_data[trainer_id] = train
-        if pois and poisc < 29:
-            poison(test, 0.5)
         test_data[trainer_id] = test
+        if pois and poisc < 29:
+            poison(train, 0.5)
+        train_data[trainer_id] = train
         poisc += 1
     return train_data, test_data
 
@@ -111,14 +111,14 @@ federated = FederatedLearning(
     trainer_manager=SeqTrainerManager(),
     trainer_config=trainer_params,
     aggregator=aggregators.AVGAggregator(),
-    metrics=metrics.AccLoss(batch_size=50, criterion=nn.CrossEntropyLoss(), device='cpu'),
+    metrics=metrics.AccLoss(batch_size=50, criterion=nn.CrossEntropyLoss(), device='cuda'),
     client_selector=client_selectors.All(),
     trainers_data_dict=train_data,
     test_data=test_data,
     initial_model=lambda: initialize_model,
     num_rounds=3,
     desired_accuracy=0.99,
-    accepted_accuracy_margin=0.01,
+    # accepted_accuracy_margin=0.01,
     Selector=IotArr,
     DataName='cifar10'
 )
@@ -143,15 +143,15 @@ for i in IotArr:
 random.shuffle(IotArr)
 random.shuffle(FedArr)
 
-Preference.FedPreference(IotArr, FedArr)
+# Preference.FedPreference(IotArr, FedArr)
 # choose the method 2 criterion (Sort) OR MCDM (calculateSw)
 # Preference.calculateSwFed(FedArr)
-Preference.sortFed(FedArr)
+# Preference.sortFed(FedArr)
 # add to preference of IOT
-Preference.IoTPreference(IotArr, FedArr)
+# Preference.IoTPreference(IotArr, FedArr)
 # choose the method 2 criterion (Sort) OR MCDM (calculateSw)
 # Preference.calculateSwIot(IotArr)
-Preference.sortIot(IotArr)
+# Preference.sortIot(IotArr)
 # pass the iot arr and fed to match as is then create function in each class iot and arr that return
 # as result the name of the server with its preference same for iot...
 # receive them put them in dictionaries run match then
@@ -160,7 +160,17 @@ Preference.sortIot(IotArr)
 # for i in IotArr:
 #     print(i.FSweightdic)
 # quit()
-IoTs_matching, Servers_m, Servers_matching, revenue = Match.federated_matching(IotArr, FedArr)
+# IoTs_matching, Servers_m, Servers_matching, revenue = Match.federated_matching(IotArr, FedArr)
+
+random.shuffle(IotArr)
+random.shuffle(FedArr)
+
+Preference.FedPreference(IotArr, FedArr)
+Preference.IoTPreference(IotArr, FedArr)
+
+IoTs_matching, Servers_m, Servers_matching, revenue = Preference.selectrandomiot(IotArr, FedArr)
+
+
 logger = logging.getLogger('Main')
 
 # for i, j in Servers_matching.items():
@@ -181,7 +191,7 @@ for i in FedArr:
     worksheet.write('A3', 'Round#')
     worksheet.write('B3', 'Accuracy')
     IOTLIST = i.preference
-    trainer_params = TrainerParams(trainer_class=trainers.TorchTrainer, batch_size=50, epochs=10, optimizer='sgd',
+    trainer_params = TrainerParams(trainer_class=trainers.TorchTrainer, batch_size=50, epochs=3, optimizer='sgd',
                                    criterion='cel', lr=0.1)
     if isinstance(IOTLIST, int):
         IOTLIST = None
@@ -192,14 +202,14 @@ for i in FedArr:
         trainer_manager=SeqTrainerManager(),
         trainer_config=trainer_params,
         aggregator=aggregators.AVGAggregator(),
-        metrics=metrics.AccLoss(batch_size=50, criterion=nn.CrossEntropyLoss(), device='cpu'),
+        metrics=metrics.AccLoss(batch_size=50, criterion=nn.CrossEntropyLoss(), device='cuda'),
         client_selector=client_selectors.All(),
         trainers_data_dict=train_data,
         test_data=test_data,
-        num_rounds=3,
+        num_rounds=500,
         initial_model=lambda: initialize_model,
         desired_accuracy=0.99,
-        accepted_accuracy_margin=0.05,
+        # accepted_accuracy_margin=0.05,
         Selector=IOTLIST,
         FedServer=i,
         worksheet=worksheet
@@ -223,6 +233,9 @@ for i in TFedArr:
 # logger.info('IoT elements:')
 # for i in IotArr:
 #     logger.info('%s', i)
+
+Preference.UpdateIoT(IotArr, FedArr)
+
 MAX_Round = -1
 for t in FedArr:
     if t.round > MAX_Round:
@@ -233,21 +246,29 @@ for count in range(MAX_Round):
     random.shuffle(IotArr)
     random.shuffle(FedArr)
 
-    Preference.FedPreference(IotArr, FedArr)
+    # Preference.FedPreference(IotArr, FedArr)
     # choose the method 2 criterion (Sort) OR MCDM (calculateSw)
     # Preference.calculateSwFed(FedArr)
-    Preference.sortFed(FedArr)
+    # Preference.sortFed(FedArr)
     # add to preference of IOT
-    Preference.IoTPreference(IotArr, FedArr)
+    # Preference.IoTPreference(IotArr, FedArr)
     # choose the method 2 criterion (Sort) OR MCDM (calculateSw)
     # Preference.calculateSwIot(IotArr)
-    Preference.sortIot(IotArr)
+    # Preference.sortIot(IotArr)
     # pass the iot arr and fed to match as is then create function in each class iot and arr that return
     # as result the name of the server with its preference same for iot...
     # receive them put them in dictionaries run match then
     # return as result 2 dictionaries and set the selected to preference if the FedServer
     # call match
-    IoTs_matching, Servers_m, Servers_matching, revenue = Match.federated_matching(IotArr, FedArr)
+    # IoTs_matching, Servers_m, Servers_matching, revenue = Match.federated_matching(IotArr, FedArr)
+
+
+    Preference.FedPreference(IotArr, FedArr)
+    Preference.IoTPreference(IotArr, FedArr)
+
+    IoTs_matching, Servers_m, Servers_matching, revenue = Preference.selectrandomiot(IotArr, FedArr)
+
+
 
     # logger.info('Matching Results:')
     # for i, j in Servers_matching.items():
@@ -256,6 +277,8 @@ for count in range(MAX_Round):
     for i in TFedArr:
         i.one_round()
         i.FedServer.round = i.FedServer.round - 1
+
+    Preference.UpdateIoT(IotArr, FedArr)
     # for i in IotArr:
     #     i.FSweightdic = {}
     #     i.preference = []
@@ -266,3 +289,4 @@ for count in range(MAX_Round):
     #     logger.info('%s', i)
 
 # quit()
+workbook.close()

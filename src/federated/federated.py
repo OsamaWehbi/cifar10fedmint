@@ -113,7 +113,7 @@ class FederatedLearning(Broadcaster):
         # clean the data get new list of clients
         if self.FedServer:
             self.trainers_data_dict = self.datacleaner(self.FedServer, self.temp_trainers_data_dict)
-            self.test_data = self.datacleaner(self.FedServer, self.temp_trainers_data_test_dict)
+            # self.test_data = self.datacleaner(self.FedServer, self.temp_trainers_data_test_dict)
             # 1
             self.trainers_train = self.trainers_data_dict
             # 2
